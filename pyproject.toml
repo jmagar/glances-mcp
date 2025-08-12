@@ -10,6 +10,8 @@ dependencies = [
     "pydantic-settings>=2.7.0",
     "asyncio-mqtt>=0.16.2",
     "structlog>=24.4.0",
+    "mypy>=1.17.1",
+    "ruff>=0.12.7",
 ]
 
 [project.optional-dependencies]
@@ -42,13 +44,15 @@ line-length = 88
 target-version = ['py311']
 
 [tool.ruff]
-select = ["E", "F", "I", "N", "W", "UP", "B", "A", "C4", "ISC", "PIE", "T20", "PYI", "Q"]
-ignore = ["E501"]  # Line too long (handled by black)
 line-length = 88
 target-version = "py311"
 fix = true
 
-[tool.ruff.isort]
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "A", "C4", "ISC", "PIE", "T20", "PYI", "Q"]
+ignore = ["E501"]  # Line too long (handled by black)
+
+[tool.ruff.lint.isort]
 known-first-party = ["glances_mcp"]
 force-sort-within-sections = true
 

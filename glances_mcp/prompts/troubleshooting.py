@@ -5,7 +5,7 @@ from fastmcp import FastMCP
 
 def register_troubleshooting_prompts(app: FastMCP) -> None:
     """Register troubleshooting prompts with the MCP server."""
-    
+
     @app.prompt("incident_response_runbook")
     def incident_response_runbook(
         incident_type: str = "performance_degradation",
@@ -60,7 +60,7 @@ def register_troubleshooting_prompts(app: FastMCP) -> None:
 
 **If Memory Issues:**
 - Check for memory leaks in applications
-- Examine swap usage and thrashing indicators  
+- Examine swap usage and thrashing indicators
 - Identify memory-heavy processes for potential restart
 - Consider emergency memory management
 
@@ -159,7 +159,7 @@ def register_troubleshooting_prompts(app: FastMCP) -> None:
 
 **When to Escalate:**
 - Issue not resolved within target time
-- Multiple systems affected simultaneously  
+- Multiple systems affected simultaneously
 - Data integrity concerns identified
 - Require emergency change approvals
 
@@ -199,7 +199,7 @@ def register_troubleshooting_prompts(app: FastMCP) -> None:
 
 Before declaring incident resolved:
 □ All critical alerts cleared
-□ Health scores return to normal ranges  
+□ Health scores return to normal ranges
 □ User functionality verified
 □ Performance metrics within acceptable ranges
 □ No new related alerts triggered
@@ -228,7 +228,7 @@ Focus on systematic approach with clear decision points and escalation criteria.
     @app.prompt("maintenance_planning")
     def maintenance_planning(
         maintenance_type: str = "system_update",
-        server_scope: str = "single_server", 
+        server_scope: str = "single_server",
         maintenance_window: str = "4_hours",
         risk_level: str = "medium"
     ) -> str:
@@ -470,7 +470,7 @@ Focus on systematic approach with clear decision points and escalation criteria.
 
 Provide specific timelines, verification steps, and clear go/no-go decision criteria for each phase."""
 
-    @app.prompt("security_assessment")  
+    @app.prompt("security_assessment")
     def security_assessment(
         assessment_scope: str = "comprehensive",
         compliance_frameworks: str = "general_security",
@@ -480,7 +480,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
         return f"""You are a Security Engineer conducting infrastructure security assessment. Perform comprehensive security evaluation using available monitoring data and system information.
 
 **ASSESSMENT PARAMETERS:**
-- Assessment Scope: {assessment_scope}  
+- Assessment Scope: {assessment_scope}
 - Compliance Framework: {compliance_frameworks}
 - Focus Areas: {focus_areas}
 
@@ -496,7 +496,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
 
 *Service and Process Analysis:*
 1. Use `get_top_processes` to identify all running services
-2. Use `get_containers` to enumerate containerized applications  
+2. Use `get_containers` to enumerate containerized applications
 3. Use `get_network_connections` to map active network services
 4. Document service exposure and attack surface
 
@@ -540,7 +540,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
 
 **System Resource Analysis:**
 - Unusual CPU usage patterns (potential crypto-mining)
-- Unexpected memory consumption (malware indicators)  
+- Unexpected memory consumption (malware indicators)
 - Abnormal network traffic patterns
 - Suspicious disk I/O activity
 
@@ -599,7 +599,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
 - Documentation deficiencies
 
 **Low-Risk Recommendations:**
-- Security enhancement opportunities  
+- Security enhancement opportunities
 - Process improvements
 - Training and awareness needs
 - Documentation updates
@@ -648,7 +648,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
 
 *Specific Monitoring Recommendations:*
 1. Configure `detect_anomalies` for security-focused metrics
-2. Set up `alert_patterns` analysis for attack pattern detection  
+2. Set up `alert_patterns` analysis for attack pattern detection
 3. Use `performance_comparison` to detect compromise indicators
 4. Implement continuous `security_assessment` monitoring
 
@@ -670,7 +670,7 @@ Provide specific timelines, verification steps, and clear go/no-go decision crit
 
 *Security Posture Metrics:*
 - Vulnerability remediation times
-- Security configuration compliance rates  
+- Security configuration compliance rates
 - Security incident response times
 - Security training completion rates
 

@@ -1,32 +1,37 @@
 """Basic monitoring tools for Glances MCP server."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastmcp import FastMCP
 
-from config.validation import InputValidator
-from glances_mcp.services.glances_client import GlancesClientPool, GlancesApiError
-from glances_mcp.utils.helpers import format_bytes, format_percentage, format_uptime, safe_get
+from glances_mcp.config.validation import InputValidator
+from glances_mcp.services.glances_client import GlancesApiError, GlancesClientPool
+from glances_mcp.utils.helpers import (
+    format_bytes,
+    format_percentage,
+    format_uptime,
+    safe_get,
+)
 from glances_mcp.utils.logging import logger, performance_logger
 
 
 def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool) -> None:
     """Register basic monitoring tools with the MCP server."""
-    
+
     @app.tool()
-    async def list_servers() -> Dict[str, Any]:
+    async def list_servers() -> dict[str, Any]:
         """List all configured Glances servers with their status and capabilities."""
         start_time = datetime.now()
-        
+
         try:
             # Get health status for all servers
             health_statuses = await client_pool.health_check_all()
-            
-            servers_info = []
+
+            servers_info: list[dict[str, Any]] = []
             for alias, server_config in client_pool.servers.items():
                 server_status = health_statuses.get(alias)
-                
+
                 server_info = {
                     "alias": server_config.alias,
                     "host": server_config.host,
@@ -46,13 +51,13 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     }
                 }
                 servers_info.append(server_info)
-            
+
             # Sort by health status (healthy first, then by alias)
             servers_info.sort(key=lambda s: (
                 {"healthy": 0, "warning": 1, "degraded": 2, "critical": 3, "unknown": 4}.get(s["status"]["health"], 5),
                 s["alias"]
             ))
-            
+
             result = {
                 "servers": servers_info,
                 "summary": {
@@ -60,83 +65,83 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     "enabled_servers": len([s for s in servers_info if s["enabled"]]),
                     "healthy_servers": len([s for s in servers_info if s["status"]["health"] == "healthy"]),
                     "servers_with_issues": len([s for s in servers_info if s["status"]["health"] in ["warning", "critical"]]),
-                    "environments": list(set(s["environment"] for s in servers_info if s["environment"])),
-                    "regions": list(set(s["region"] for s in servers_info if s["region"]))
+                    "environments": list({s["environment"] for s in servers_info if s["environment"]}),
+                    "regions": list({s["region"] for s in servers_info if s["region"]})
                 }
             }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("list_servers", duration_ms, True)
-            
+
             return result
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("list_servers", duration_ms, False)
             logger.error("Error in list_servers", error=str(e))
             raise
-    
+
     @app.tool()
-    async def get_server_status(server_alias: Optional[str] = None) -> Dict[str, Any]:
+    async def get_server_status(server_alias: str | None = None) -> dict[str, Any]:
         """Get detailed status information for one or all servers."""
         start_time = datetime.now()
-        
+
         try:
             if server_alias:
                 # Validate server alias
                 if server_alias not in client_pool.servers:
                     raise ValueError(f"Server '{server_alias}' not found")
-                
+
                 client = client_pool.get_client(server_alias)
                 if not client:
                     raise ValueError(f"Client for server '{server_alias}' not available")
-                
+
                 server_status = await client.health_check()
                 servers_status = {server_alias: server_status}
             else:
                 servers_status = await client_pool.health_check_all()
-            
+
             detailed_status = {}
             for alias, status in servers_status.items():
+                server_config = client_pool.servers[alias]
+                env_value = server_config.environment.value if server_config.environment else None
+
                 detailed_status[alias] = {
                     "health": status.health.status,
                     "message": status.health.message,
                     "timestamp": status.health.timestamp.isoformat(),
                     "last_successful_connection": (
-                        status.last_successful_connection.isoformat() 
+                        status.last_successful_connection.isoformat()
                         if status.last_successful_connection else None
                     ),
                     "response_time_ms": status.response_time_ms,
                     "glances_version": status.glances_version,
                     "capabilities": status.capabilities,
                     "server_config": {
-                        "host": client_pool.servers[alias].host,
-                        "port": client_pool.servers[alias].port,
-                        "environment": (
-                            client_pool.servers[alias].environment.value 
-                            if client_pool.servers[alias].environment else None
-                        ),
-                        "region": client_pool.servers[alias].region,
-                        "tags": client_pool.servers[alias].tags
+                        "host": server_config.host,
+                        "port": server_config.port,
+                        "environment": env_value,
+                        "region": server_config.region,
+                        "tags": server_config.tags
                     }
                 }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_server_status", duration_ms, True)
-            
+
             return {"servers": detailed_status}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_server_status", duration_ms, False)
             logger.error("Error in get_server_status", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
-    async def get_system_overview(server_alias: Optional[str] = None) -> Dict[str, Any]:
+    async def get_system_overview(server_alias: str | None = None) -> dict[str, Any]:
         """Get system overview including CPU, memory, load, and uptime for one or all servers."""
         start_time = datetime.now()
-        
+
         try:
             clients = {}
             if server_alias:
@@ -147,9 +152,9 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
+
             systems_overview = {}
-            
+
             for alias, client in clients.items():
                 try:
                     # Get core system metrics
@@ -158,7 +163,7 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     memory_data = await client.get_memory_info()
                     load_data = await client.get_load_average()
                     uptime_data = await client.get_uptime()
-                    
+
                     overview = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -196,9 +201,9 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "formatted": format_uptime(safe_get(uptime_data, "seconds", 0))
                         }
                     }
-                    
+
                     systems_overview[alias] = overview
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting system overview for server",
@@ -210,33 +215,33 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         "error": str(e),
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_system_overview", duration_ms, True)
-            
+
             return {"systems": systems_overview}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_system_overview", duration_ms, False)
             logger.error("Error in get_system_overview", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
     async def get_detailed_metrics(
-        server_alias: Optional[str] = None,
+        server_alias: str | None = None,
         include_sensors: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get detailed system metrics including extended CPU, memory, and I/O statistics."""
         start_time = datetime.now()
-        
+
         try:
             # Validate parameters
-            validated_params = InputValidator.validate_tool_params(
+            InputValidator.validate_tool_params(
                 "get_detailed_metrics",
                 {"server_alias": server_alias, "include_sensors": include_sensors}
             )
-            
+
             clients = {}
             if server_alias:
                 if server_alias not in client_pool.servers:
@@ -246,16 +251,16 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
+
             detailed_metrics = {}
-            
+
             for alias, client in clients.items():
                 try:
                     # Get detailed metrics
                     cpu_data = await client.get_cpu_info()
                     memory_data = await client.get_memory_info()
                     disk_io_data = await client.get_disk_io()
-                    
+
                     metrics = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -286,7 +291,7 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "slab": safe_get(memory_data, "slab", 0)
                         }
                     }
-                    
+
                     # Add disk I/O statistics
                     if disk_io_data:
                         io_stats = []
@@ -303,19 +308,20 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                                 "write_bytes_formatted": format_bytes(safe_get(disk, "write_bytes", 0))
                             }
                             io_stats.append(io_stat)
-                        metrics["disk_io"] = io_stats
-                    
+                        # Cast to Any to handle list assignment to Collection[str] typed dict
+                        metrics["disk_io"] = io_stats  # type: ignore[assignment]
+
                     # Add sensor data if requested and available
                     if include_sensors:
                         try:
                             sensors_data = await client.get_sensors()
                             if sensors_data:
                                 metrics["sensors"] = sensors_data
-                        except:
+                        except Exception:
                             pass  # Sensors might not be available
-                    
+
                     detailed_metrics[alias] = metrics
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting detailed metrics for server",
@@ -327,23 +333,23 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         "error": str(e),
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_detailed_metrics", duration_ms, True)
-            
+
             return {"servers": detailed_metrics}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_detailed_metrics", duration_ms, False)
             logger.error("Error in get_detailed_metrics", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
-    async def get_disk_usage(server_alias: Optional[str] = None) -> Dict[str, Any]:
+    async def get_disk_usage(server_alias: str | None = None) -> dict[str, Any]:
         """Get disk usage information for all mount points."""
         start_time = datetime.now()
-        
+
         try:
             clients = {}
             if server_alias:
@@ -354,18 +360,18 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
+
             servers_disk_usage = {}
-            
+
             for alias, client in clients.items():
                 try:
                     disk_data = await client.get_disk_usage()
-                    
+
                     filesystems = []
                     total_size = 0
                     total_used = 0
                     total_free = 0
-                    
+
                     for fs in disk_data:
                         filesystem = {
                             "device_name": safe_get(fs, "device_name", "unknown"),
@@ -381,16 +387,16 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "usage_formatted": format_percentage(safe_get(fs, "percent", 0))
                         }
                         filesystems.append(filesystem)
-                        
+
                         # Aggregate totals (excluding special filesystems)
                         if not safe_get(fs, "mnt_point", "").startswith(("/dev", "/proc", "/sys", "/run")):
                             total_size += safe_get(fs, "size", 0)
                             total_used += safe_get(fs, "used", 0)
                             total_free += safe_get(fs, "free", 0)
-                    
+
                     # Sort by mount point
                     filesystems.sort(key=lambda x: x["mnt_point"])
-                    
+
                     usage_summary = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -405,18 +411,18 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "total_used_formatted": format_bytes(total_used),
                             "total_free_formatted": format_bytes(total_free),
                             "critical_filesystems": [
-                                fs for fs in filesystems 
+                                fs for fs in filesystems
                                 if fs["percent"] >= 95
                             ],
                             "warning_filesystems": [
-                                fs for fs in filesystems 
+                                fs for fs in filesystems
                                 if 85 <= fs["percent"] < 95
                             ]
                         }
                     }
-                    
+
                     servers_disk_usage[alias] = usage_summary
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting disk usage for server",
@@ -428,23 +434,23 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         "error": str(e),
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_disk_usage", duration_ms, True)
-            
+
             return {"servers": servers_disk_usage}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_disk_usage", duration_ms, False)
             logger.error("Error in get_disk_usage", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
-    async def get_network_stats(server_alias: Optional[str] = None) -> Dict[str, Any]:
+    async def get_network_stats(server_alias: str | None = None) -> dict[str, Any]:
         """Get network interface statistics and traffic information."""
         start_time = datetime.now()
-        
+
         try:
             clients = {}
             if server_alias:
@@ -455,33 +461,33 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
+
             servers_network_stats = {}
-            
+
             for alias, client in clients.items():
                 try:
                     network_data = await client.get_network_interfaces()
-                    
+
                     interfaces = []
                     total_rx_bytes = 0
                     total_tx_bytes = 0
                     total_rx_packets = 0
                     total_tx_packets = 0
                     total_errors = 0
-                    
+
                     for interface in network_data:
                         interface_name = safe_get(interface, "interface_name", "unknown")
-                        
+
                         # Skip loopback and other special interfaces for totals
                         is_physical = not interface_name.startswith(("lo", "docker", "veth", "br-"))
-                        
+
                         rx_bytes = safe_get(interface, "rx_bytes", 0)
                         tx_bytes = safe_get(interface, "tx_bytes", 0)
                         rx_packets = safe_get(interface, "rx_packets", 0)
                         tx_packets = safe_get(interface, "tx_packets", 0)
                         rx_errors = safe_get(interface, "rx_errors", 0)
                         tx_errors = safe_get(interface, "tx_errors", 0)
-                        
+
                         interface_info = {
                             "interface_name": interface_name,
                             "rx_bytes": rx_bytes,
@@ -501,17 +507,17 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "is_physical": is_physical
                         }
                         interfaces.append(interface_info)
-                        
+
                         if is_physical:
                             total_rx_bytes += rx_bytes
                             total_tx_bytes += tx_bytes
                             total_rx_packets += rx_packets
                             total_tx_packets += tx_packets
                             total_errors += rx_errors + tx_errors
-                    
+
                     # Sort interfaces by name
                     interfaces.sort(key=lambda x: x["interface_name"])
-                    
+
                     network_summary = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -531,14 +537,14 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                                 if (total_rx_packets + total_tx_packets) > 0 else 0
                             ),
                             "interfaces_with_errors": [
-                                i["interface_name"] for i in interfaces 
+                                i["interface_name"] for i in interfaces
                                 if i["rx_errors"] > 0 or i["tx_errors"] > 0
                             ]
                         }
                     }
-                    
+
                     servers_network_stats[alias] = network_summary
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting network stats for server",
@@ -550,31 +556,31 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         "error": str(e),
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_network_stats", duration_ms, True)
-            
+
             return {"servers": servers_network_stats}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_network_stats", duration_ms, False)
             logger.error("Error in get_network_stats", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
     async def get_top_processes(
-        server_alias: Optional[str] = None,
+        server_alias: str | None = None,
         limit: int = 10,
         sort_by: str = "cpu",
-        filter_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        filter_name: str | None = None
+    ) -> dict[str, Any]:
         """Get top processes sorted by CPU or memory usage."""
         start_time = datetime.now()
-        
+
         try:
             # Validate parameters
-            validated_params = InputValidator.validate_tool_params(
+            InputValidator.validate_tool_params(
                 "get_top_processes",
                 {
                     "server_alias": server_alias,
@@ -583,7 +589,7 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     "filter_name": filter_name
                 }
             )
-            
+
             clients = {}
             if server_alias:
                 if server_alias not in client_pool.servers:
@@ -593,13 +599,13 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
-            servers_processes = {}
-            
+
+            servers_processes: dict[str, Any] = {}
+
             for alias, client in clients.items():
                 try:
                     processes_data = await client.get_processes()
-                    
+
                     if not processes_data:
                         servers_processes[alias] = {
                             "server_alias": alias,
@@ -607,24 +613,24 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "timestamp": datetime.now().isoformat()
                         }
                         continue
-                    
+
                     # Filter processes if requested
                     if filter_name:
                         processes_data = [
                             proc for proc in processes_data
                             if filter_name.lower() in safe_get(proc, "name", "").lower()
                         ]
-                    
+
                     # Sort processes
                     sort_key = "cpu_percent" if sort_by == "cpu" else "memory_percent"
                     processes_data.sort(
                         key=lambda p: safe_get(p, sort_key, 0),
                         reverse=True
                     )
-                    
+
                     # Limit results
                     top_processes = processes_data[:limit]
-                    
+
                     # Format process information
                     formatted_processes = []
                     for proc in top_processes:
@@ -649,7 +655,7 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             ),
                             "cpu_times": safe_get(proc, "cpu_times", {})
                         }
-                        
+
                         # Add command line (truncated for security)
                         cmdline = safe_get(proc, "cmdline", [])
                         if cmdline:
@@ -660,13 +666,13 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             process_info["cmdline"] = command_str
                         else:
                             process_info["cmdline"] = safe_get(proc, "name", "unknown")
-                        
+
                         formatted_processes.append(process_info)
-                    
+
                     # Calculate summary statistics
-                    total_cpu = sum(safe_get(p, "cpu_percent", 0) for p in processes_data)
-                    total_memory = sum(safe_get(p, "memory_percent", 0) for p in processes_data)
-                    
+                    # total_cpu = sum(safe_get(p, "cpu_percent", 0) for p in processes_data)
+                    # total_memory = sum(safe_get(p, "memory_percent", 0) for p in processes_data)
+
                     process_summary = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -683,18 +689,18 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                                 p["memory_percent"] for p in formatted_processes
                             ),
                             "running_processes": len([
-                                p for p in processes_data 
+                                p for p in processes_data
                                 if safe_get(p, "status") == "running"
                             ]),
                             "sleeping_processes": len([
-                                p for p in processes_data 
+                                p for p in processes_data
                                 if safe_get(p, "status") == "sleeping"
                             ])
                         }
                     }
-                    
+
                     servers_processes[alias] = process_summary
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting processes for server",
@@ -706,36 +712,36 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         "error": str(e),
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_top_processes", duration_ms, True)
-            
+
             return {"servers": servers_processes}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_top_processes", duration_ms, False)
             logger.error("Error in get_top_processes", server_alias=server_alias, error=str(e))
             raise
-    
+
     @app.tool()
     async def get_containers(
-        server_alias: Optional[str] = None,
+        server_alias: str | None = None,
         include_stopped: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get Docker/Podman container information and statistics."""
         start_time = datetime.now()
-        
+
         try:
             # Validate parameters
-            validated_params = InputValidator.validate_tool_params(
+            InputValidator.validate_tool_params(
                 "get_containers",
                 {
                     "server_alias": server_alias,
                     "include_stopped": include_stopped
                 }
             )
-            
+
             clients = {}
             if server_alias:
                 if server_alias not in client_pool.servers:
@@ -745,13 +751,13 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                     clients[server_alias] = client
             else:
                 clients = client_pool.get_enabled_clients()
-            
-            servers_containers = {}
-            
+
+            servers_containers: dict[str, Any] = {}
+
             for alias, client in clients.items():
                 try:
                     containers_data = await client.get_containers()
-                    
+
                     if not containers_data:
                         servers_containers[alias] = {
                             "server_alias": alias,
@@ -765,28 +771,28 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             "timestamp": datetime.now().isoformat()
                         }
                         continue
-                    
+
                     # Filter containers by status if requested
                     if not include_stopped:
                         containers_data = [
                             container for container in containers_data
                             if safe_get(container, "Status", "").startswith("Up")
                         ]
-                    
+
                     # Format container information
                     formatted_containers = []
                     running_count = 0
                     stopped_count = 0
-                    
+
                     for container in containers_data:
                         status = safe_get(container, "Status", "unknown")
                         is_running = status.startswith("Up")
-                        
+
                         if is_running:
                             running_count += 1
                         else:
                             stopped_count += 1
-                        
+
                         container_info = {
                             "id": safe_get(container, "Id", "unknown")[:12],  # Short ID
                             "name": safe_get(container, "name", "unknown"),
@@ -815,15 +821,15 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                                 safe_get(container, "network_tx", 0)
                             )
                         }
-                        
+
                         formatted_containers.append(container_info)
-                    
+
                     # Sort by CPU usage (descending)
                     formatted_containers.sort(
                         key=lambda c: c["cpu_percent"],
                         reverse=True
                     )
-                    
+
                     container_summary = {
                         "server_alias": alias,
                         "timestamp": datetime.now().isoformat(),
@@ -846,9 +852,9 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                             )
                         }
                     }
-                    
+
                     servers_containers[alias] = container_summary
-                
+
                 except GlancesApiError as e:
                     logger.warning(
                         "Error getting containers for server",
@@ -864,12 +870,12 @@ def register_basic_monitoring_tools(app: FastMCP, client_pool: GlancesClientPool
                         },
                         "timestamp": datetime.now().isoformat()
                     }
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_containers", duration_ms, True)
-            
+
             return {"servers": servers_containers}
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             performance_logger.log_tool_execution("get_containers", duration_ms, False)

@@ -1,25 +1,24 @@
 """Configuration resources for Glances MCP server."""
 
 import json
-from typing import Any, Dict
+from typing import Any, cast
 
 from fastmcp import FastMCP
 
-from config.settings import settings
+from glances_mcp.config.settings import settings
 from glances_mcp.services.glances_client import GlancesClientPool
-from glances_mcp.utils.helpers import filter_sensitive_info
 
 
 def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPool) -> None:
     """Register configuration resources with the MCP server."""
-    
+
     @app.resource("glances://config/servers")
     async def servers_config() -> str:
         """Complete server inventory with configuration metadata and connection parameters."""
         try:
             mcp_config = settings.load_mcp_config()
-            
-            servers_info = []
+
+            servers_info: list[dict[str, Any]] = []
             for server in mcp_config.servers:
                 # Get current status if available
                 server_status = None
@@ -34,9 +33,9 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                             "glances_version": status.glances_version,
                             "capabilities": status.capabilities
                         }
-                    except:
+                    except Exception:
                         server_status = {"health": "unknown", "error": "Unable to get status"}
-                
+
                 server_info = {
                     "alias": server.alias,
                     "connection": {
@@ -60,21 +59,37 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                         "config_version": "1.0"
                     }
                 }
-                
+
                 servers_info.append(server_info)
-            
+
             # Server summary statistics
             total_servers = len(servers_info)
             enabled_servers = len([s for s in servers_info if s["enabled"]])
-            environments = list(set(s["classification"]["environment"] for s in servers_info if s["classification"]["environment"]))
-            regions = list(set(s["classification"]["region"] for s in servers_info if s["classification"]["region"]))
-            all_tags = set()
-            for server in servers_info:
-                all_tags.update(server["classification"]["tags"])
-            
+
+            # Extract environments safely with type casting
+            environments = list({
+                cast(dict[str, Any], s["classification"])["environment"]
+                for s in servers_info
+                if cast(dict[str, Any], s["classification"])["environment"] is not None
+            })
+
+            # Extract regions safely with type casting
+            regions = list({
+                cast(dict[str, Any], s["classification"])["region"]
+                for s in servers_info
+                if cast(dict[str, Any], s["classification"])["region"] is not None
+            })
+
+            # Extract tags safely
+            all_tags: set[str] = set()
+            for server_dict in servers_info:
+                server_classification = cast(dict[str, Any], server_dict["classification"])
+                server_tags = cast(list[str], server_classification["tags"])
+                all_tags.update(server_tags)
+
             config_resource = {
                 "resource_info": {
-                    "uri": "glances://config/servers", 
+                    "uri": "glances://config/servers",
                     "name": "Server Configuration Inventory",
                     "description": "Complete inventory of all configured Glances servers with metadata",
                     "type": "configuration",
@@ -87,8 +102,11 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "disabled_servers": total_servers - enabled_servers,
                     "environments": environments,
                     "regions": regions,
-                    "unique_tags": sorted(list(all_tags)),
-                    "protocols": list(set(s["connection"]["protocol"] for s in servers_info))
+                    "unique_tags": sorted(all_tags),
+                    "protocols": list({
+                        cast(dict[str, Any], s["connection"])["protocol"]
+                        for s in servers_info
+                    })
                 },
                 "servers": servers_info,
                 "configuration_guidelines": {
@@ -98,9 +116,9 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "security": "Use authentication for production servers, consider HTTPS for sensitive environments"
                 }
             }
-            
+
             return json.dumps(config_resource, indent=2)
-        
+
         except Exception as e:
             error_response = {
                 "resource_info": {
@@ -112,13 +130,13 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 "message": "Unable to load server configuration"
             }
             return json.dumps(error_response, indent=2)
-    
-    @app.resource("glances://config/thresholds") 
+
+    @app.resource("glances://config/thresholds")
     async def thresholds_config() -> str:
         """Alert threshold configurations with templates and modification history."""
         try:
             mcp_config = settings.load_mcp_config()
-            
+
             # Process alert thresholds
             thresholds_info = []
             for threshold in mcp_config.alert_thresholds:
@@ -137,9 +155,9 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     }
                 }
                 thresholds_info.append(threshold_info)
-            
+
             # Process alert rules
-            rules_info = []
+            rules_info: list[dict[str, Any]] = []
             for rule in mcp_config.alert_rules:
                 rule_info = {
                     "name": rule.name,
@@ -161,7 +179,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     }
                 }
                 rules_info.append(rule_info)
-            
+
             # Default threshold templates
             default_templates = {
                 "cpu_thresholds": {
@@ -185,7 +203,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "network.error_rate": {"warning": 0.1, "critical": 1.0, "unit": "%", "comparison": "gt"}
                 }
             }
-            
+
             thresholds_resource = {
                 "resource_info": {
                     "uri": "glances://config/thresholds",
@@ -198,8 +216,11 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 "summary": {
                     "total_thresholds": len(thresholds_info),
                     "total_rules": len(rules_info),
-                    "enabled_rules": len([r for r in rules_info if r["settings"]["enabled"]]),
-                    "metrics_monitored": list(set(t["metric"] for t in thresholds_info))
+                    "enabled_rules": len([
+                        r for r in rules_info
+                        if cast(dict[str, Any], r["settings"])["enabled"]
+                    ]),
+                    "metrics_monitored": list({t["metric"] for t in thresholds_info})
                 },
                 "current_thresholds": thresholds_info,
                 "alert_rules": rules_info,
@@ -217,14 +238,14 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "load_thresholds": "Normalize by CPU count for meaningful load average thresholds"
                 }
             }
-            
+
             return json.dumps(thresholds_resource, indent=2)
-        
+
         except Exception as e:
             error_response = {
                 "resource_info": {
                     "uri": "glances://config/thresholds",
-                    "name": "Alert Threshold Configuration", 
+                    "name": "Alert Threshold Configuration",
                     "error": str(e)
                 },
                 "current_thresholds": [],
@@ -232,14 +253,14 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 "message": "Unable to load threshold configuration"
             }
             return json.dumps(error_response, indent=2)
-    
+
     @app.resource("glances://config/maintenance_windows")
     async def maintenance_windows_config() -> str:
         """Maintenance window configurations and schedules."""
         try:
             mcp_config = settings.load_mcp_config()
-            
-            maintenance_windows = []
+
+            maintenance_windows: list[dict[str, Any]] = []
             for window in mcp_config.maintenance_windows:
                 window_info = {
                     "name": window.name,
@@ -253,28 +274,29 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                         "suppress_alerts": window.suppress_alerts
                     },
                     "day_names": [
-                        "Monday", "Tuesday", "Wednesday", "Thursday", 
+                        "Monday", "Tuesday", "Wednesday", "Thursday",
                         "Friday", "Saturday", "Sunday"
                     ]
                 }
-                
+
                 # Add human-readable day names
-                day_names = []
+                day_names: list[str] = []
+                window_day_names = cast(list[str], window_info["day_names"])
                 for day_num in window.days_of_week:
-                    day_names.append(window_info["day_names"][day_num])
+                    day_names.append(window_day_names[day_num])
                 window_info["readable_schedule"] = {
                     "days": day_names,
                     "time": f"{window.start_time} - {window.end_time} ({window.timezone})"
                 }
-                
+
                 maintenance_windows.append(window_info)
-            
+
             # Sample maintenance window templates
             sample_templates = {
                 "weekly_maintenance": {
                     "name": "Weekly Maintenance",
                     "start_time": "02:00",
-                    "end_time": "06:00", 
+                    "end_time": "06:00",
                     "days_of_week": [6],  # Sunday
                     "timezone": "UTC",
                     "suppress_alerts": True
@@ -288,7 +310,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "suppress_alerts": False
                 },
                 "emergency_maintenance": {
-                    "name": "Emergency Maintenance", 
+                    "name": "Emergency Maintenance",
                     "start_time": "00:00",
                     "end_time": "23:59",
                     "days_of_week": [0, 1, 2, 3, 4, 5, 6],  # All days
@@ -296,20 +318,26 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "suppress_alerts": True
                 }
             }
-            
+
             maintenance_resource = {
                 "resource_info": {
                     "uri": "glances://config/maintenance_windows",
                     "name": "Maintenance Window Configuration",
                     "description": "Scheduled maintenance windows and alert suppression settings",
-                    "type": "configuration", 
+                    "type": "configuration",
                     "last_updated": "Real-time",
                     "format": "JSON"
                 },
                 "summary": {
                     "total_windows": len(maintenance_windows),
-                    "windows_with_suppression": len([w for w in maintenance_windows if w["settings"]["suppress_alerts"]]),
-                    "timezones_used": list(set(w["schedule"]["timezone"] for w in maintenance_windows)) if maintenance_windows else []
+                    "windows_with_suppression": len([
+                        w for w in maintenance_windows
+                        if cast(dict[str, Any], w["settings"])["suppress_alerts"]
+                    ]),
+                    "timezones_used": list({
+                        cast(dict[str, Any], w["schedule"])["timezone"]
+                        for w in maintenance_windows
+                    }) if maintenance_windows else []
                 },
                 "maintenance_windows": maintenance_windows,
                 "templates": sample_templates,
@@ -321,7 +349,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 },
                 "day_of_week_mapping": {
                     "0": "Monday",
-                    "1": "Tuesday", 
+                    "1": "Tuesday",
                     "2": "Wednesday",
                     "3": "Thursday",
                     "4": "Friday",
@@ -329,9 +357,9 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "6": "Sunday"
                 }
             }
-            
+
             return json.dumps(maintenance_resource, indent=2)
-        
+
         except Exception as e:
             error_response = {
                 "resource_info": {
@@ -343,7 +371,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 "message": "Unable to load maintenance window configuration"
             }
             return json.dumps(error_response, indent=2)
-    
+
     @app.resource("glances://config/settings")
     async def application_settings() -> str:
         """Application settings and configuration parameters."""
@@ -377,14 +405,14 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "health_check_timeout": settings.health_check_timeout
                 }
             }
-            
+
             # Configuration file information
             config_info = {
                 "config_file_path": settings.config_file,
                 "environment_variables_prefix": "GLANCES_MCP_",
                 "configuration_sources": ["Environment Variables", "Configuration File", "Defaults"]
             }
-            
+
             # Default configuration template
             default_config = {
                 "servers": [
@@ -392,7 +420,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                         "alias": "example-server",
                         "host": "localhost",
                         "port": 61208,
-                        "protocol": "http", 
+                        "protocol": "http",
                         "username": None,
                         "password": None,
                         "environment": "development",
@@ -431,7 +459,7 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                 "performance_baseline_retention": 7,
                 "alert_history_retention": 30
             }
-            
+
             settings_resource = {
                 "resource_info": {
                     "uri": "glances://config/settings",
@@ -462,13 +490,13 @@ def register_configuration_resources(app: FastMCP, client_pool: GlancesClientPoo
                     "log_formats": ["json", "text"]
                 }
             }
-            
+
             return json.dumps(settings_resource, indent=2)
-        
+
         except Exception as e:
             error_response = {
                 "resource_info": {
-                    "uri": "glances://config/settings", 
+                    "uri": "glances://config/settings",
                     "name": "Application Settings",
                     "error": str(e)
                 },

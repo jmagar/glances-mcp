@@ -5,11 +5,11 @@ from fastmcp import FastMCP
 
 def register_analysis_prompts(app: FastMCP) -> None:
     """Register system analysis prompts with the MCP server."""
-    
+
     @app.prompt("system_health_analysis")
     def system_health_analysis(server_alias: str = "all", include_trends: bool = True) -> str:
         """Generate comprehensive infrastructure health assessment with multi-server analysis."""
-        return f"""You are an expert Site Reliability Engineer conducting a comprehensive infrastructure health assessment. 
+        return f"""You are an expert Site Reliability Engineer conducting a comprehensive infrastructure health assessment.
 
 **ANALYSIS SCOPE:**
 - Target servers: {'All monitored servers' if server_alias == 'all' else f'Server: {server_alias}'}
@@ -23,7 +23,7 @@ Use the following tools in sequence to build your assessment:
    - Use `get_system_overview` to collect basic metrics from all servers
    - Identify any servers that are unreachable or showing errors
 
-2. **Health Score Analysis** 
+2. **Health Score Analysis**
    - Use `generate_health_score` to get comprehensive health scoring
    - Focus on servers with scores below 70 (concerning) or below 50 (critical)
    - Analyze component breakdowns (CPU, memory, disk, network, load)
@@ -49,7 +49,7 @@ Provide a structured analysis with the following sections:
 
 **EXECUTIVE SUMMARY**
 - Overall infrastructure health status (Healthy/Warning/Critical)
-- Number of servers assessed and any accessibility issues  
+- Number of servers assessed and any accessibility issues
 - Top 3 priority actions required
 - Risk level assessment for business operations
 
@@ -68,7 +68,7 @@ Provide a structured analysis with the following sections:
 *Infrastructure Health by Category:*
 - CPU: Overall utilization, bottlenecks, iowait issues
 - Memory: Usage patterns, swap activity, memory leaks
-- Storage: Disk space, I/O performance, filesystem issues  
+- Storage: Disk space, I/O performance, filesystem issues
 - Network: Throughput, errors, connectivity issues
 - System Load: Load averages, process activity
 
@@ -107,7 +107,7 @@ For each server with issues:
 
 Focus on actionable insights that help operators understand both current health and trajectory. Use specific metrics, thresholds, and timeframes. Highlight correlations between servers or metrics that might indicate systemic issues."""
 
-    @app.prompt("performance_troubleshooting") 
+    @app.prompt("performance_troubleshooting")
     def performance_troubleshooting(
         server_alias: str,
         issue_description: str = "general performance degradation",
@@ -139,7 +139,7 @@ Investigate each major resource category:
 - Check for steal time (virtualization overhead)
 - Analyze system vs user CPU usage patterns
 
-*Memory Analysis:*  
+*Memory Analysis:*
 - Examine memory usage, available memory, swap activity
 - Look for memory leaks or unusual memory growth
 - Check buffer/cache usage patterns
@@ -153,7 +153,7 @@ Investigate each major resource category:
 - Use `get_network_stats` to check for errors, dropped packets
 - Look for bandwidth saturation or interface issues
 
-**Phase 3: Process and Container Analysis**  
+**Phase 3: Process and Container Analysis**
 - Use `get_top_processes` to identify resource-intensive processes
 - Use `get_containers` to examine container resource usage if applicable
 - Correlate high resource usage with specific applications/services
@@ -174,7 +174,7 @@ Follow this systematic approach based on findings:
 
 **If CPU Usage > 80%:**
 - Identify top CPU processes
-- Check for runaway processes or infinite loops  
+- Check for runaway processes or infinite loops
 - Examine process nice levels and scheduling
 - Consider CPU upgrade if sustained high usage
 
@@ -277,7 +277,7 @@ Focus on data-driven analysis using specific metrics and thresholds. Provide cle
 
 **Phase 2: Resource Utilization Analysis**
 - Use `get_detailed_metrics` for comprehensive resource inventory
-- Use `get_disk_usage` for storage capacity assessment  
+- Use `get_disk_usage` for storage capacity assessment
 - Use `performance_comparison` to understand utilization trends
 - Document current resource allocation and utilization patterns
 
@@ -312,7 +312,7 @@ Focus on data-driven analysis using specific metrics and thresholds. Provide cle
 
 *Utilization Patterns:*
 - Peak vs average resource consumption
-- Seasonal or cyclical usage patterns  
+- Seasonal or cyclical usage patterns
 - Resource efficiency analysis
 - Workload distribution assessment
 
@@ -337,7 +337,7 @@ Focus on data-driven analysis using specific metrics and thresholds. Provide cle
 - Business event impact modeling
 
 *Scenario Analysis:*
-- Conservative growth (current trends continue)  
+- Conservative growth (current trends continue)
 - Expected growth (planned business expansion)
 - Aggressive growth (maximum growth scenarios)
 - Risk scenarios (unexpected demand spikes)
@@ -412,7 +412,7 @@ Focus on data-driven analysis using specific metrics and thresholds. Provide cle
 
 *Review Processes:*
 - Monthly capacity reviews
-- Quarterly projection updates  
+- Quarterly projection updates
 - Annual capacity planning cycles
 - Trigger-based emergency planning
 

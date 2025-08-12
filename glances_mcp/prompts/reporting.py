@@ -5,7 +5,7 @@ from fastmcp import FastMCP
 
 def register_reporting_prompts(app: FastMCP) -> None:
     """Register reporting prompts with the MCP server."""
-    
+
     @app.prompt("executive_dashboard")
     def executive_dashboard(
         time_period: str = "last_30_days",
@@ -33,7 +33,7 @@ def register_reporting_prompts(app: FastMCP) -> None:
 
 *Business-Critical Metrics:*
 - **System Availability**: Overall uptime percentage and availability trends
-- **Performance Index**: Composite performance score across all systems  
+- **Performance Index**: Composite performance score across all systems
 - **Capacity Utilization**: Resource utilization efficiency and planning status
 - **Alert Health**: Ratio of resolved vs active critical issues
 
@@ -47,7 +47,7 @@ def register_reporting_prompts(app: FastMCP) -> None:
 
 *Service Availability Impact:*
 - Critical service uptime statistics
-- User-impacting incident frequency and duration  
+- User-impacting incident frequency and duration
 - Revenue impact from infrastructure issues
 - SLA compliance metrics and trending
 
@@ -73,7 +73,7 @@ def register_reporting_prompts(app: FastMCP) -> None:
 *Key Strategic Observations:*
 - Infrastructure scalability readiness
 - Technology debt and modernization needs
-- Automation and efficiency opportunities  
+- Automation and efficiency opportunities
 - Risk management effectiveness
 
 *Future State Readiness:*
@@ -92,7 +92,7 @@ def register_reporting_prompts(app: FastMCP) -> None:
 
 *Business Continuity Metrics:*
 - Recovery time objectives (RTO) compliance
-- Recovery point objectives (RPO) compliance  
+- Recovery point objectives (RPO) compliance
 - Backup success rates and testing
 - Incident response effectiveness
 
@@ -117,7 +117,7 @@ def register_reporting_prompts(app: FastMCP) -> None:
 *Infrastructure Health Scorecard:*
 ```
 System Availability:     ██████████ 99.8% ↗️
-Performance Index:       ██████████ 94.2% ↗️  
+Performance Index:       ██████████ 94.2% ↗️
 Capacity Utilization:    ███████░░░ 72.1% →
 Alert Resolution:        █████████░ 89.5% ↗️
 ```
@@ -125,7 +125,7 @@ Alert Resolution:        █████████░ 89.5% ↗️
 *Key Performance Indicators:*
 - **Uptime**: 99.8% (Target: 99.9%) - Meeting SLA requirements
 - **Mean Time to Recovery**: 12 minutes (Target: <15 min) - Excellent
-- **Capacity Runway**: 8 months at current growth - Planning required  
+- **Capacity Runway**: 8 months at current growth - Planning required
 - **Cost Efficiency**: $0.34/transaction (Previous: $0.41) - Improved 17%
 
 *Business Impact Summary:*
@@ -138,7 +138,7 @@ Alert Resolution:        █████████░ 89.5% ↗️
 
 *Immediate Priorities (Next 90 Days):*
 1. **Capacity Planning**: Initiate procurement for infrastructure expansion to support Q3 growth projections
-2. **Risk Mitigation**: Address identified single points of failure in payment processing infrastructure  
+2. **Risk Mitigation**: Address identified single points of failure in payment processing infrastructure
 3. **Cost Optimization**: Implement automated scaling to achieve additional 12% cost reduction
 
 *Strategic Initiatives (Next 6-12 Months):*
@@ -197,7 +197,7 @@ Alert Resolution:        █████████░ 89.5% ↗️
 
 *Success Metrics to Track:*
 - System availability trending toward 99.95%
-- Mean time to recovery <10 minutes  
+- Mean time to recovery <10 minutes
 - Infrastructure cost per transaction <$0.30
 - Capacity runway maintained at 6+ months
 
@@ -220,7 +220,7 @@ Present all data with clear business context, avoid technical jargon, focus on o
     @app.prompt("technical_deep_dive")
     def technical_deep_dive(
         analysis_focus: str = "performance_optimization",
-        technical_domain: str = "infrastructure_engineering", 
+        technical_domain: str = "infrastructure_engineering",
         depth_level: str = "comprehensive"
     ) -> str:
         """Detailed technical analysis with performance optimization and architecture improvement suggestions."""
@@ -266,7 +266,7 @@ Present all data with clear business context, avoid technical jargon, focus on o
 
 **CPU Performance Analysis:**
 - Instruction mix and CPU efficiency metrics
-- Context switching overhead and scheduling efficiency  
+- Context switching overhead and scheduling efficiency
 - NUMA topology utilization and memory locality
 - CPU frequency scaling and power management impacts
 
@@ -282,7 +282,7 @@ Present all data with clear business context, avoid technical jargon, focus on o
 - Storage protocol efficiency (NVMe, SATA, network storage)
 - I/O pattern analysis and optimization opportunities
 
-**Network Performance Analysis:**  
+**Network Performance Analysis:**
 - Protocol stack performance and optimization
 - Network interface efficiency and driver optimizations
 - Bandwidth utilization patterns and capacity planning
@@ -324,7 +324,7 @@ Present all data with clear business context, avoid technical jargon, focus on o
 
 *Infrastructure Software Optimization:*
 - Load balancer configuration and algorithm optimization
-- Reverse proxy performance and caching optimization  
+- Reverse proxy performance and caching optimization
 - Message queue configuration and performance tuning
 - Database configuration and query optimization
 
@@ -368,7 +368,7 @@ Memory Utilization Analysis:
 
 Storage Performance Profile:
 - IOPS: 8,540 (65% of maximum)
-- Throughput: 890 MB/s (71% of maximum)  
+- Throughput: 890 MB/s (71% of maximum)
 - Average Latency: 2.4ms (Excellent)
 - Queue Depth Utilization: 45% (Optimal)
 ```
@@ -383,7 +383,7 @@ Storage Performance Profile:
 
 2. **Memory Optimization**: Implement transparent huge pages and memory balancing
    - Expected improvement: 8-12% memory efficiency
-   - Implementation effort: 20 person-days  
+   - Implementation effort: 20 person-days
    - Risk level: Low
 
 3. **Storage Optimization**: Implement NVMe over Fabrics for high-throughput workloads
@@ -415,7 +415,7 @@ Storage Performance Profile:
 
 **Vertical Scaling Optimizations:**
 - NUMA-aware memory allocation strategies
-- CPU pinning for performance-critical workloads  
+- CPU pinning for performance-critical workloads
 - Storage tiering for optimal cost/performance
 - Network interface bonding and optimization
 
@@ -433,7 +433,7 @@ Storage Performance Profile:
 - Deploy automated performance regression detection
 - Create performance testing infrastructure
 
-**Phase 2: Optimization (3-6 months)**  
+**Phase 2: Optimization (3-6 months)**
 - Execute high-impact performance optimizations
 - Implement advanced caching strategies
 - Deploy service mesh for traffic optimization

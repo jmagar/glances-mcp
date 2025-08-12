@@ -1,26 +1,27 @@
 """Helper utilities for Glances MCP server."""
 
 import asyncio
-import json
+from collections.abc import Awaitable
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+import json
+from typing import Any, TypeVar
 
-import aiohttp
+T = TypeVar("T")
 
 
 def format_bytes(bytes_value: int) -> str:
     """Format bytes into human readable format."""
     if bytes_value == 0:
         return "0 B"
-    
+
     units = ["B", "KB", "MB", "GB", "TB", "PB"]
     unit_index = 0
     size = float(bytes_value)
-    
+
     while size >= 1024.0 and unit_index < len(units) - 1:
         size /= 1024.0
         unit_index += 1
-    
+
     return f"{size:.1f} {units[unit_index]}"
 
 
@@ -60,37 +61,38 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
     return numerator / denominator
 
 
-def safe_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+def safe_get(data: dict[str, Any], path: str, default: Any = None) -> Any:
     """Safely get a nested value from a dictionary using dot notation."""
+    if not path:
+        return data
+
     keys = path.split(".")
-    current = data
-    
-    try:
-        for key in keys:
-            if isinstance(current, dict):
-                current = current[key]
-            else:
-                return default
-        return current
-    except (KeyError, TypeError):
-        return default
+    result = data
+
+    for key in keys:
+        if isinstance(result, dict) and key in result:
+            result = result[key]
+        else:
+            return default
+
+    return result
 
 
-def calculate_average(values: List[float]) -> float:
+def calculate_average(values: list[float]) -> float:
     """Calculate average of a list of values."""
     if not values:
         return 0.0
     return sum(values) / len(values)
 
 
-def calculate_percentile(values: List[float], percentile: float) -> float:
+def calculate_percentile(values: list[float], percentile: float) -> float:
     """Calculate percentile of a list of values."""
     if not values:
         return 0.0
-    
+
     sorted_values = sorted(values)
     index = (percentile / 100) * (len(sorted_values) - 1)
-    
+
     if index.is_integer():
         return sorted_values[int(index)]
     else:
@@ -100,28 +102,28 @@ def calculate_percentile(values: List[float], percentile: float) -> float:
 
 
 def is_within_maintenance_window(
-    maintenance_windows: List[Dict[str, Any]],
-    current_time: Optional[datetime] = None
+    maintenance_windows: list[dict[str, Any]],
+    current_time: datetime | None = None
 ) -> bool:
     """Check if current time is within any maintenance window."""
     if not maintenance_windows:
         return False
-    
+
     if current_time is None:
         current_time = datetime.now()
-    
+
     # For simplicity, assume all times are in the same timezone
     current_weekday = current_time.weekday()  # 0=Monday, 6=Sunday
     current_time_str = current_time.strftime("%H:%M")
-    
+
     for window in maintenance_windows:
         if current_weekday in window.get("days_of_week", []):
             start_time = window.get("start_time", "00:00")
             end_time = window.get("end_time", "23:59")
-            
+
             if start_time <= current_time_str <= end_time:
                 return True
-    
+
     return False
 
 
@@ -131,30 +133,30 @@ def generate_correlation_id() -> str:
     return str(uuid.uuid4())[:8]
 
 
-def merge_metrics(metrics_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+def merge_metrics(metrics_list: list[dict[str, Any]]) -> dict[str, Any]:
     """Merge multiple metric dictionaries, aggregating numeric values."""
     if not metrics_list:
         return {}
-    
+
     merged = {}
-    
+
     for metrics in metrics_list:
         for key, value in metrics.items():
             if key not in merged:
                 merged[key] = value
-            elif isinstance(value, (int, float)) and isinstance(merged[key], (int, float)):
+            elif isinstance(value, int | float) and isinstance(merged[key], int | float):
                 merged[key] += value
             elif isinstance(value, list) and isinstance(merged[key], list):
                 merged[key].extend(value)
-    
+
     return merged
 
 
-def filter_sensitive_info(data: Dict[str, Any]) -> Dict[str, Any]:
+def filter_sensitive_info(data: dict[str, Any]) -> dict[str, Any]:
     """Remove sensitive information from data."""
     sensitive_keys = ["password", "token", "key", "secret", "credential"]
-    
-    filtered = {}
+
+    filtered: dict[str, Any] = {}
     for key, value in data.items():
         if any(sensitive in key.lower() for sensitive in sensitive_keys):
             filtered[key] = "***REDACTED***"
@@ -162,16 +164,16 @@ def filter_sensitive_info(data: Dict[str, Any]) -> Dict[str, Any]:
             filtered[key] = filter_sensitive_info(value)
         else:
             filtered[key] = value
-    
+
     return filtered
 
 
-async def async_timeout(coro, timeout_seconds: float):
+async def async_timeout(coro: Awaitable[T], timeout_seconds: float) -> T:
     """Execute coroutine with timeout."""
     try:
         return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
-        raise TimeoutError(f"Operation timed out after {timeout_seconds} seconds")
+    except TimeoutError:
+        raise TimeoutError(f"Operation timed out after {timeout_seconds} seconds") from None
 
 
 def validate_json_serializable(data: Any) -> Any:
@@ -179,13 +181,13 @@ def validate_json_serializable(data: Any) -> Any:
     try:
         json.dumps(data, default=str)
         return data
-    except (TypeError, ValueError) as e:
+    except (TypeError, ValueError):
         # Convert problematic types to strings
         if isinstance(data, dict):
             return {k: validate_json_serializable(v) for k, v in data.items()}
         elif isinstance(data, list):
             return [validate_json_serializable(item) for item in data]
-        elif isinstance(data, (datetime, timedelta)):
+        elif isinstance(data, datetime | timedelta):
             return str(data)
         else:
             return str(data)
@@ -193,12 +195,12 @@ def validate_json_serializable(data: Any) -> Any:
 
 class CircularBuffer:
     """Simple circular buffer for storing recent values."""
-    
+
     def __init__(self, max_size: int):
         self.max_size = max_size
-        self.buffer: List[Any] = []
+        self.buffer: list[Any] = []
         self.index = 0
-    
+
     def append(self, value: Any) -> None:
         """Add value to buffer."""
         if len(self.buffer) < self.max_size:
@@ -206,15 +208,15 @@ class CircularBuffer:
         else:
             self.buffer[self.index] = value
             self.index = (self.index + 1) % self.max_size
-    
-    def get_all(self) -> List[Any]:
+
+    def get_all(self) -> list[Any]:
         """Get all values in chronological order."""
         if len(self.buffer) < self.max_size:
             return self.buffer.copy()
         else:
             return self.buffer[self.index:] + self.buffer[:self.index]
-    
-    def get_recent(self, count: int) -> List[Any]:
+
+    def get_recent(self, count: int) -> list[Any]:
         """Get most recent N values."""
         all_values = self.get_all()
         return all_values[-count:] if count < len(all_values) else all_values
@@ -222,22 +224,22 @@ class CircularBuffer:
 
 class RateLimiter:
     """Simple rate limiter for API calls."""
-    
+
     def __init__(self, max_calls: int, time_window: int):
         self.max_calls = max_calls
         self.time_window = time_window
-        self.calls: List[float] = []
-    
+        self.calls: list[float] = []
+
     def can_make_call(self) -> bool:
         """Check if a call can be made within rate limits."""
         now = datetime.now().timestamp()
-        
+
         # Remove calls outside the time window
         cutoff = now - self.time_window
         self.calls = [call_time for call_time in self.calls if call_time > cutoff]
-        
+
         return len(self.calls) < self.max_calls
-    
+
     def record_call(self) -> None:
         """Record that a call was made."""
         self.calls.append(datetime.now().timestamp())

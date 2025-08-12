@@ -1,15 +1,14 @@
 """Knowledge base resources for Glances MCP server."""
 
-import json
 from datetime import datetime
-from typing import Dict, List
+import json
 
 from fastmcp import FastMCP
 
 
 def register_knowledge_resources(app: FastMCP) -> None:
     """Register knowledge base resources with the MCP server."""
-    
+
     @app.resource("glances://knowledge/runbooks")
     async def operational_runbooks() -> str:
         """Operational runbooks, best practices, and troubleshooting procedures."""
@@ -106,7 +105,7 @@ def register_knowledge_resources(app: FastMCP) -> None:
             },
             "network_performance_issues": {
                 "title": "Network Performance Issues",
-                "severity": "medium", 
+                "severity": "medium",
                 "symptoms": [
                     "High network error rates",
                     "Packet drops or retransmissions",
@@ -165,14 +164,14 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 ]
             }
         }
-        
+
         # General troubleshooting best practices
         best_practices = {
             "general_troubleshooting": {
                 "methodology": [
                     "Define the problem clearly and gather symptoms",
                     "Check recent changes (deployments, configs, infrastructure)",
-                    "Reproduce the issue in a controlled environment if possible", 
+                    "Reproduce the issue in a controlled environment if possible",
                     "Gather relevant logs, metrics, and diagnostic information",
                     "Form hypotheses about root causes",
                     "Test hypotheses systematically",
@@ -198,13 +197,13 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 "escalation_information": [
                     "Clear problem statement and business impact",
                     "Steps already taken and results",
-                    "Current system state and metrics", 
+                    "Current system state and metrics",
                     "Proposed next steps or recommendations",
                     "Timeline constraints and dependencies"
                 ]
             }
         }
-        
+
         runbooks_resource = {
             "resource_info": {
                 "uri": "glances://knowledge/runbooks",
@@ -223,9 +222,9 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 "training": "Ensure team members are familiar with relevant runbooks"
             }
         }
-        
+
         return json.dumps(runbooks_resource, indent=2)
-    
+
     @app.resource("glances://knowledge/baselines")
     async def performance_baselines_knowledge() -> str:
         """Performance baselines, capacity planning data, and optimization guidance."""
@@ -273,7 +272,7 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 "network_baselines": {
                     "error_rates": {
                         "acceptable": "<0.01%",
-                        "concerning": "0.01-0.1%", 
+                        "concerning": "0.01-0.1%",
                         "critical": ">0.1%"
                     },
                     "utilization": {
@@ -340,7 +339,7 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 ]
             }
         }
-        
+
         recommendations = {
             "baseline_establishment": [
                 "Collect at least 2 weeks of data before establishing baselines",
@@ -357,7 +356,7 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 "Regular review and adjustment of thresholds based on false positive rates"
             ]
         }
-        
+
         baselines_resource = {
             "resource_info": {
                 "uri": "glances://knowledge/baselines",
@@ -376,5 +375,5 @@ def register_knowledge_resources(app: FastMCP) -> None:
                 "continuous_improvement": "Regular review and optimization should be part of operational procedures"
             }
         }
-        
+
         return json.dumps(baselines_resource, indent=2)
