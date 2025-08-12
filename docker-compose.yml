@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  glances-mcp:
+    build: .
+    container_name: glances-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      - GLANCES_MCP_LOG_LEVEL=INFO
+      - GLANCES_MCP_DEBUG=false
+      - GLANCES_MCP_HOST=0.0.0.0
+      - GLANCES_MCP_PORT=8080
+      - GLANCES_MCP_CONFIG_FILE=/app/glances_mcp/config/config.json
+    volumes:
+      - ./glances_mcp/config/config.json:/app/glances_mcp/config/config.json:ro
+      - glances-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - monitoring
+
+  # Example Glances server for testing
+  glances-demo:
+    image: nicolargo/glances:latest-full
+    container_name: glances-demo
+    ports:
+      - "61208:61208"
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -w -B 0.0.0.0 --username glances --password demo123
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # Additional example Glances server
+  glances-demo-2:
+    image: nicolargo/glances:latest-full
+    container_name: glances-demo-2
+    ports:
+      - "61209:61208"
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -w -B 0.0.0.0 --username glances --password demo123
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+volumes:
+  glances-data:
+
+networks:
+  monitoring:
+    driver: bridge

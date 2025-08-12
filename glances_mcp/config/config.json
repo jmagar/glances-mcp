@@ -1,0 +1,133 @@
+{
+  "servers": [
+    {
+      "alias": "glances-demo",
+      "host": "glances-demo",
+      "port": 61208,
+      "protocol": "http",
+      "username": "glances",
+      "password": "demo123",
+      "environment": "development",
+      "region": "local",
+      "tags": ["demo", "docker", "test"],
+      "timeout": 30,
+      "enabled": true
+    },
+    {
+      "alias": "glances-demo-2",
+      "host": "glances-demo-2", 
+      "port": 61208,
+      "protocol": "http",
+      "username": "glances",
+      "password": "demo123",
+      "environment": "development",
+      "region": "local", 
+      "tags": ["demo", "docker", "test"],
+      "timeout": 30,
+      "enabled": true
+    }
+  ],
+  "alert_thresholds": [
+    {
+      "metric": "cpu.total",
+      "warning": 80.0,
+      "critical": 90.0,
+      "unit": "%",
+      "comparison": "gt",
+      "description": "Total CPU utilization threshold"
+    },
+    {
+      "metric": "mem.percent",
+      "warning": 85.0,
+      "critical": 95.0,
+      "unit": "%",
+      "comparison": "gt",
+      "description": "Memory utilization threshold"
+    },
+    {
+      "metric": "disk.percent",
+      "warning": 85.0,
+      "critical": 95.0,
+      "unit": "%",
+      "comparison": "gt",
+      "description": "Disk space utilization threshold"
+    },
+    {
+      "metric": "load.min5",
+      "warning": 2.0,
+      "critical": 4.0,
+      "unit": "load",
+      "comparison": "gt",
+      "description": "5-minute load average threshold"
+    }
+  ],
+  "alert_rules": [
+    {
+      "name": "high_cpu_usage",
+      "metric_path": "cpu.total",
+      "thresholds": {
+        "metric": "cpu.total",
+        "warning": 80.0,
+        "critical": 90.0,
+        "unit": "%",
+        "comparison": "gt"
+      },
+      "enabled": true,
+      "cooldown_minutes": 15
+    },
+    {
+      "name": "high_memory_usage",
+      "metric_path": "mem.percent",
+      "thresholds": {
+        "metric": "mem.percent",
+        "warning": 85.0,
+        "critical": 95.0,
+        "unit": "%",
+        "comparison": "gt"
+      },
+      "enabled": true,
+      "cooldown_minutes": 15
+    },
+    {
+      "name": "high_disk_usage",
+      "metric_path": "disk.percent",
+      "thresholds": {
+        "metric": "disk.percent",
+        "warning": 85.0,
+        "critical": 95.0,
+        "unit": "%",
+        "comparison": "gt"
+      },
+      "enabled": true,
+      "server_filter": null,
+      "environment_filter": ["production"],
+      "tag_filter": null,
+      "cooldown_minutes": 30
+    },
+    {
+      "name": "high_system_load",
+      "metric_path": "load.min5",
+      "thresholds": {
+        "metric": "load.min5",
+        "warning": 2.0,
+        "critical": 4.0,
+        "unit": "load",
+        "comparison": "gt"
+      },
+      "enabled": true,
+      "cooldown_minutes": 10
+    }
+  ],
+  "maintenance_windows": [
+    {
+      "name": "Weekly Maintenance",
+      "start_time": "02:00",
+      "end_time": "06:00",
+      "days_of_week": [6],
+      "timezone": "UTC",
+      "suppress_alerts": true
+    }
+  ],
+  "performance_baseline_retention": 7,
+  "alert_history_retention": 30
+}
